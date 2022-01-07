@@ -3,8 +3,14 @@
  */
 package com.stottp.java.threading;
 
+import org.assertj.core.util.Lists;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+import java.util.concurrent.*;
+
+import static java.lang.System.*;
+import static java.lang.Thread.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class AppTest {
@@ -14,6 +20,106 @@ class AppTest {
         assertThat(classUnderTest.getGreeting()).isEqualTo("Hello World!");
     }
 
+    @Test
+    void canRunNewThread() {
+        Thread thread = new Thread(() ->
+                out.println("I'm running in a different thread to main: " + getThreadName()));
+
+        out.println("I'm in main thread: " + getThreadName());
+
+        thread.start();
+    }
+
+    @Test
+    void canRunMultipleThreads() throws InterruptedException {
+        Thread thread = new Thread(() ->
+        {
+            sleepForASecond();
+            out.println("I'm running in a different thread to main: " + getThreadName());
+        });
+
+        Thread thread2 = new Thread(() ->
+        {
+            sleepForASecond();
+            out.println("I'm running in a different thread to main: " + getThreadName());
+        });
+
+
+        out.println("I'm in main thread: " + getThreadName());
+
+        thread.start();
+        thread2.start();
+//        thread.join();
+//        thread2.join();
+    }
+
+    // Thread creation is expensive and are limited, eg. cannot return values cannot propagate exceptions etc.
+
+
+    @Test
+    void canUseThreadPoolsToRunQueuedTasks() throws ExecutionException, InterruptedException {
+        ExecutorService fixedThreadPool = Executors.newFixedThreadPool(10);
+
+
+        Future<?> future = fixedThreadPool.submit(() -> {
+            sleepForASecond();
+            out.println("I'm running in a different thread to main: " + getThreadName());
+        });
+
+        Future<?> future2 = fixedThreadPool.submit(() -> {
+            sleepForASecond();
+            out.println("I'm running in a different thread to main: " + getThreadName());
+        });
+
+        future.get();
+        future2.get();
+    }
+
+    @Test
+    void canUseThreadPoolsToRunACollectionOfQueuedTasks() throws ExecutionException, InterruptedException {
+        ExecutorService fixedThreadPool = Executors.newFixedThreadPool(10);
+
+        // Supplier service call for id 1
+        Callable<Integer> callable1 = () -> {
+            sleepForASecond();
+            out.println(getThreadName());
+            return 1;
+        };
+
+        // Supplier service call for id 2
+        Callable<Integer> callable2 = () -> {
+            sleepForASecond();
+            out.println(getThreadName());
+            return 2;
+        };
+
+        // Add to a list
+        List<Callable<Integer>> callableList = Lists.list(callable1, callable2);
+
+        // Queue both tasks, service will distribute them across available 10 threads
+        List<Future<Integer>> futureList = fixedThreadPool.invokeAll(callableList);
+
+        int sumOfResponses = 0;
+
+        for (Future<Integer> future : futureList) {
+            sumOfResponses += future.get();
+        }
+
+        out.println("Total = " + sumOfResponses);
+    }
+
+
+    private void sleepForASecond() {
+        try {
+            sleep(2000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private String getThreadName() {
+        return currentThread().getName();
+    }
 
 
 }
